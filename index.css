@@ -1,0 +1,25 @@
+html,body{
+    margin:0;
+    padding:0;
+    background-color: #eee;
+}
+
+#canvas{
+    box-shadow: 0px 0px 10px 2px #ccc;
+    position: absolute;
+    left:0;
+    right:0;
+    top:0;
+    bottom:0;
+    margin: auto;
+    background-color: #ccc;
+    cursor:move;
+}
+.steps{
+    position: fixed;
+    left:50px;
+    top:50%;
+    font-size: 20px;
+    font-weight: bold;
+    color:red;
+}
