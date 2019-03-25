@@ -1,5 +1,5 @@
 # gobang
-the gobang game was built the game with canvas
+the gobang game was built with canvas
 
 
 ## 效果图
