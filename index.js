@@ -166,9 +166,13 @@ function judgeMouseXY(x, y, config) {
   return [tmpX * config.gridW, tmpY * config.gridW, tmpX, tmpY];
 }
 
-// 赢后处理
-function checkWin(role, isMe) {
+// 检测落子数
+function checkWin(role, isMe, dir) {
   if (role.length >= 5) {
+    let isContinue = checkContinuous(role, dir);
+    if (!isContinue) {
+      return false
+    }
     setTimeout(function () {
       alert(!isMe ? '白旗胜利✌️' : '黑棋胜利✌️');
     }, 200);
@@ -178,6 +182,42 @@ function checkWin(role, isMe) {
     return true;
   }
   return false;
+}
+//检测连续性
+function checkContinuous(role, dir) {
+  let judgeX = function (role) {
+    let step = 1;
+    for (let i = 1; i < role.length; i++) {
+      step += 1;
+      if (Math.abs(role[i][0] - role[i - 1][0]) !== 1) {
+        step -= 1;
+      }
+    }
+    console.log('x', step)
+    return step >= 5;
+  }
+  let judgeY = function (role) {
+    let step = 1;
+    for (let i = 1; i < role.length; i++) {
+      step += 1;
+      console.log(Math.abs(role[i][1] - role[i - 1][1]), '！==1？')
+      if (Math.abs(role[i][1] - role[i - 1][1]) !== 1) {
+        step -= 1;
+      }
+    }
+    console.log(step)
+    return step >= 5;
+  }
+  switch (dir) {
+    case 'TB':
+      return judgeY(role);
+    case 'LR':
+      return judgeX(role);
+    case 'RBLT':
+    case 'TRBL':
+      return judgeX(role) && judgeY(role);
+    default: return false
+  }
 }
 // 判断输赢
 function judgeWin(x, y) {
@@ -197,28 +237,28 @@ function judgeWin(x, y) {
         role = TB[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
           board[x][y + i] === chessValue && role.push([x, y + i]);
-          if (checkWin(role, isMe)) return;
+          if (checkWin(role, isMe, dirs[dir])) return;
         }
         break;
       case 'TRBL':
         role = TRBL[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
           board[x + i][y + i] === chessValue && role.push([x + i, y + i]);
-          if (checkWin(role, isMe)) return;
+          if (checkWin(role, isMe, dirs[dir])) return;
         }
         break;
       case 'LR':
         role = TRBL[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
           board[x + i][y] === chessValue && role.push([x + i, y]);
-          if (checkWin(role, isMe)) return;
+          if (checkWin(role, isMe, dirs[dir])) return;
         }
         break;
       case 'RBLT':
         role = TRBL[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
           board[x + i][y - i] === chessValue && role.push([x + i, y - i]);
-          if (checkWin(role, isMe)) return;
+          if (checkWin(role, isMe, dirs[dir])) return;
         }
         break;
       default:
