@@ -148,7 +148,7 @@ function judgeMouseXY(x, y, config) {
   for (var i = 0; i < cordinates.length; i++) {
     var curNum = Math.sqrt(
       Math.pow(tmpX - cordinates[i][0], 2) +
-        Math.pow(tmpY - cordinates[i][1], 2),
+      Math.pow(tmpY - cordinates[i][1], 2),
     );
     if (offsetD > curNum) {
       offsetD = curNum;
@@ -210,14 +210,14 @@ function judgeWin(x, y) {
       case 'LR':
         role = TRBL[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
-          board[x][y + i] === chessValue && role.push([x, y + i]);
+          board[x + i][y] === chessValue && role.push([x + i, y]);
           if (checkWin(role, isMe)) return;
         }
         break;
       case 'RBLT':
         role = TRBL[isMe ? 'me' : 'friend'];
         for (let i = -4; i <= 4; i++) {
-          board[x + i][y] === chessValue && role.push([x + i, y]);
+          board[x + i][y - i] === chessValue && role.push([x + i, y - i]);
           if (checkWin(role, isMe)) return;
         }
         break;
