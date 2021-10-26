@@ -4,21 +4,23 @@ config = {
   gridW: 30, //棋盘格子宽
   gridH: 30, //棋盘格子高
   me: true, // 哪方先下棋
-  meChessColor: '#222',
-  friendChessColor: '#fff',
-  winnerColor: '#aacf53',
-  meChessValue: 1,
-  friendChessValue: 2,
-  tagBoard: [], //
-  meNum: 0, // 我方下棋数量
-  friendNum: 0, // 对方下棋子数量
+  meChessColor: '#222', // 我方棋子颜色
+  friendChessColor: '#fff', // 对方棋子颜色
+  winnerColor: '#aacf53', //赢家连线棋子颜色
+  meChessValue: 1,  // 我方棋子代码
+  friendChessValue: 2, //对方棋子代码
+  tagBoard: [], //棋盘，保存代码数据，用于标识落子位置
+//   meNum: 0, // 我方下棋数量,通过Object.defineProperty设置
+//   friendNum: 0, // 对方下棋子数量,通过Object.defineProperty设置
 };
 const store = {
-  rows: 0,
-  cols: 0,
-  context: null,
-  canvas: null,
-  dirLoseWin: {
+  rows: 0, //保存的棋盘行数
+  cols: 0, //保存的棋盘列数
+  context: null, //画布上下文
+  canvas: null, // 画布对象
+  currenAxis:[], //落子的坐标记录
+  drawHistory:[], //落子前的棋盘图像数据记录
+  dirLoseWin: { // 判断输赢的方向坐标数据
     TB: { me: [], friend: [] }, //上+下         "|"
     TRBL: { me: [], friend: [] }, //上右 +下左    "/"
     LR: { me: [], friend: [] }, // 左+右         "--"
@@ -26,41 +28,105 @@ const store = {
   },
 };
 
+/**
+ * @description 监听落子数量，更新页面
+ */
+function listenChessNum() {
+  let meNum = 0;
+  let friendNum = 0;
+  Object.defineProperties(config, {
+    meNum: {
+      configurable: true,
+      get: function () {
+        return meNum;
+      },
+      set: function (value) {
+        meNum = value;
+        document.getElementById('meNum').innerText = value;
+      },
+    },
+    friendNum: {
+      configurable: true,
+      get: function () {
+        return friendNum;
+      },
+      set: function (value) {
+        friendNum = value;
+        document.getElementById('friendNum').innerText = value;
+      },
+    },
+  });
+}
+// 页面加载后，初始化棋盘
 window.onload = function () {
-  init(config);
+  init(config, store);
 };
-// 初始化
-function init(config) {
+
+/**
+ * @description 初始化棋盘，监听落子事件，监听棋子数量变化更新页面
+ * @param {Object} config 配置信息
+ * @param {Object} store 用于保存数据
+ */
+function init(config,store) {
   var canvas = document.getElementById('canvas');
-  canvas.width = config.canvasW;
-  canvas.height = config.canvasH;
+  canvas.width = config.canvasW;                    //设置画布宽度
+  canvas.height = config.canvasH;                   // 设置画布高度
   var context = canvas.getContext('2d');
-  store.context = context;
-  store.canvas = canvas;
-  //画棋盘
-  let [rows, cols] = drawBoard(context, config);
-  store.rows = rows;
-  store.cols = cols;
-  //点击落棋子绑定事件
-  store.canvas.addEventListener('click', clickChessHandler);
+  store.context = context;                          // 保存画布上下文到store中
+  store.canvas = canvas;                            //保存画布到上下文
+  let [rows, cols] = drawBoard(context, config);    //绘制棋盘
+  store.rows = rows;                                //保存棋盘行数
+  store.cols = cols;                                //保存棋盘列数
+  listenChessNum();                                 //绑定监听棋子数量变化
+  store.canvas.addEventListener('click', clickChessHandler);//点击落棋子绑定事件
 }
 
-//处理落棋子事件
+
+/**
+ * @description 落子事件句柄，绘制棋子的同时判断输赢
+ * @param {Event} e 事件对象
+ */
 function clickChessHandler(e) {
-  var noset =
+  // 判断【上+左】边界棋子是否越界
+  var outsideLeftTop =
     e.offsetX < config.gridW ? false : e.offsetY < config.gridH ? false : true;
-  if (noset) {
-    var xy = judgeMouseXY(e.offsetX, e.offsetY, config);
+  // 判断【下+右】边界棋子是否越界
+  let outsideRgithBottom =
+    e.offsetX > config.canvasW - config.gridW / 2
+      ? false
+      : e.offsetY > config.canvasH - config.gridH / 2
+      ? false
+      : true;
+  // 如果都没越界
+  if (outsideLeftTop && outsideRgithBottom) {
+    var xy = judgeMouseXY(e.offsetX, e.offsetY, config); // 判断棋子落在各自的哪个顶点
+    // 保存落子前的画布图像数据
+    store.drawHistory.push(
+      store.context.getImageData(0, 0, config.canvasW, config.canvasH),
+    );
+    // 绘制棋子，落子
     drawChess(store.context, config, xy[0], xy[1], xy[2], xy[3], config.me);
+    // 保存落子后的坐标数据
+    store.currenAxis.push([xy[2], xy[3]]);
+    // 判断输赢
     try {
       judgeWin(xy[2], xy[3]);
     } catch (err) {
       console.log('只是判断越界，正常逻辑，基操勿6');
     }
+  } else {
+    console.log('大哥你落子棋盘歪了');
   }
 }
-// 绘制棋盘
+
+/**
+ * @description 绘制棋盘，底部标语/格子
+ * @param {CanvasRenderingContext2D} ctx 画布上下文
+ * @param {Object} config 配置对象
+ * @returns {Array} 棋盘行数和列数【rows,cols】
+ */
 function drawBoard(ctx, config) {
+  //绘制标语
   ctx.font = '40px Arial';
   ctx.fillStyle = '#ffc';
   ctx.strokeStyle = '#222';
@@ -69,33 +135,45 @@ function drawBoard(ctx, config) {
     Math.floor(config.canvasW / 2) - 138,
     Math.floor(config.canvasH / 2),
   );
+  //计算行数和列数
   var rowNums = Math.floor(config.canvasH / config.gridH);
   var colNums = Math.floor(config.canvasW / config.gridW);
-  //init tagboard
+  // 初始化棋盘代码数据：0
   for (var row = 1; row < rowNums; row++) {
     config.tagBoard[row] = [];
     for (var col = 1; col < colNums; col++) {
       config.tagBoard[row][col] = 0;
     }
   }
-  //draw row lines
+  //绘制横线
   for (var row = 1; row < rowNums; row++) {
     ctx.beginPath();
     ctx.lineTo(config.gridW, row * config.gridH);
     ctx.lineTo(config.canvasW - config.gridW, row * config.gridH);
     ctx.stroke();
   }
-  //draw column lines
+  //绘制竖线
   for (var col = 1; col < colNums; col++) {
     ctx.beginPath();
     ctx.lineTo(col * config.gridW, config.gridH);
     ctx.lineTo(col * config.gridW, config.canvasH - config.gridH);
     ctx.stroke();
   }
+  // 返回行数和列数
   return [rowNums, colNums];
 }
 
-// 绘制棋子
+
+/**
+ * @description 绘制棋子
+ * @param {CanvasRenderingContext2D} ctx 画布上下文
+ * @param {Object} config 配置信息
+ * @param {number} x 绘制横坐标 eg: 5*gridW
+ * @param {number} y 绘制纵坐标 eg: 5*gridH
+ * @param {number} tagX 棋盘数据所在格子横向位置 eg: 5
+ * @param {number} tagY 棋盘数据所在格子纵向位置 eg: 5
+ * @param {boolean} isMe 我方还是对方
+ */
 function drawChess(ctx, config, x, y, tagX, tagY, isMe) {
   if (
     config.tagBoard[tagX][tagY] === config.meChessValue ||
@@ -116,11 +194,12 @@ function drawChess(ctx, config, x, y, tagX, tagY, isMe) {
   ctx.arc(x, y, Math.floor(config.gridW / 2), 0, Math.PI * 2);
   ctx.fill();
   config.me = !config.me;
-  document.getElementById('meNum').innerText = config.meNum;
-  document.getElementById('friendNum').innerText = config.friendNum;
 }
-
-// 绘制赢方棋子
+ 
+/**
+ * @description 绘制赢方棋子
+ * @param {Array} axis 连线的棋子坐标数据
+ */
 function drawWinner(axis) {
   for (let i = 0; i < axis.length; i++) {
     let x = axis[i][0] * config.gridW;
@@ -133,7 +212,14 @@ function drawWinner(axis) {
   console.log(axis);
 }
 
-// 判断落子位置边界处理
+
+/**
+ * @description 判断落子位置边界处理
+ * @param {number} x 点击后的x轴位置，需要计算后确定落子位置
+ * @param {number} y 点击后的y轴位置，需要计算后确定落子位置
+ * @param {Object} config 配置对象
+ * @returns {Array} 棋子实际落子的坐标信息 =>[落子横坐标，落子纵坐标，落子所在横向格子数，落子所在纵向格子数]
+ */
 function judgeMouseXY(x, y, config) {
   var cordinates = [
     [0, 0],
@@ -167,6 +253,13 @@ function judgeMouseXY(x, y, config) {
 }
 
 // 检测落子数
+/**
+ * 
+ * @param {Array} role 当前角色的落子标记数据，连续的坐标数据
+ * @param {Boolean} isMe 是否我方
+ * @param {String} dir 方向代码 'TB'｜'TRBL'｜ 'LR'｜ 'RBLT'
+ * @returns 
+ */
 function checkWin(role, isMe, dir) {
   if (role.length >= 5) {
     let isContinue = checkContinuous(role, dir);
@@ -183,7 +276,13 @@ function checkWin(role, isMe, dir) {
   }
   return false;
 }
-//检测连续性
+
+/**
+ * @description 检测棋子连续性
+ * @param {Array} role 当前角色的落子标记数据，连续的坐标数据
+ * @param {String} dir 方向代码 'TB'｜'TRBL'｜ 'LR'｜ 'RBLT'
+ * @returns {Boolean} 是否连续
+ */
 function checkContinuous(role, dir) {
   let judgeX = function (role) {
     let step = 1;
@@ -220,6 +319,11 @@ function checkContinuous(role, dir) {
   }
 }
 // 判断输赢
+/**
+ * 
+ * @param {number} x 棋子实际落子横向格子位置
+ * @param {number} y 棋子实际落子纵向向格子位置
+ */
 function judgeWin(x, y) {
   let board = config.tagBoard;
   let { TB, TRBL, LR, RBLT } = store.dirLoseWin;
@@ -265,4 +369,21 @@ function judgeWin(x, y) {
         break;
     }
   }
+}
+
+/**
+ * @description 悔棋绘制
+ */
+function drawBack(){
+    if(store.drawHistory.length === 0){
+        alert('无棋可悔....你好水哦😯😂')
+        return
+    }
+    !config.me ? --config.meNum: --config.friendNum;
+    config.me  = !config.me;
+    let tagBoardData = store.currenAxis.pop()
+    config.tagBoard[tagBoardData[0]][tagBoardData[1]] = 0;
+    let imgData = store.drawHistory.pop()
+    store.context.clearRect(0, 0, config.canvasW, config.canvasH)
+    store.context.putImageData(imgData, 0, 0)
 }
